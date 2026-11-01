@@ -1,0 +1,38 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Environment files (only the documented examples and the public frontend config are versioned)
+.env
+.env.*
+!.env.example
+!frontend/.env.development
+!frontend/.env.production
+
+# Local embedded database
+backend/data/
+
+# Vercel
+.vercel/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+
+# Coverage and logs
+coverage/
+*.log
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Lock file of the local embedded database (PGLITE_DATA_DIR + ".lock")
+backend/data.lock

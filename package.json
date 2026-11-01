@@ -1,0 +1,31 @@
+{
+  "name": "supermarket-stock-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Supermarket inventory with admin and employee roles: products, categories, employees and an audited stock movement history.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": "26.x",
+    "npm": ">=11 <12"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "test": "npm run test:scripts && npm run test -w backend && npm run test -w frontend && npm run test:e2e -w frontend",
+    "test:scripts": "node --test \"scripts/*.test.mjs\"",
+    "test:coverage": "npm run test:coverage -w backend",
+    "check:versions": "node scripts/check-versions.mjs",
+    "check:release-age": "node scripts/check-release-age.mjs",
+    "audit": "npm audit --omit=dev --audit-level=low"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
