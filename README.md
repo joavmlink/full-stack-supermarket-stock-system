@@ -2,7 +2,9 @@
 
 Inventory for a supermarket with two roles. An **admin** manages employees, categories and products. An **employee** browses the products and records stock movements: one form, with a Sale or Restock type, for one or more products. Every stock change is kept in a history that explains the current quantities.
 
-The demo is private: there are no public accounts, so these screenshots show the app. They come from the production build, with fake data.
+**[▶ Live demo](https://full-stack-supermarket-stock-system.vercel.app)**
+
+The demo is private: there are no public accounts, so the link opens the sign-in page and these screenshots show the app. They come from the production build, with fake data.
 
 | Products (admin) | Recording a movement |
 | --- | --- |
@@ -278,13 +280,13 @@ Two more tables stand alone: `rate_limits` (counters) and `schema_version` (the 
 ## Deployment (Vercel + Neon)
 
 1. **GitHub.** Push the repository. In its security settings, turn on Secret Protection, Push protection, Dependabot alerts and Private vulnerability reporting.
-2. **Neon.** Create a project with **Postgres 18**, the same major version as PGlite, in the region closest to the Vercel functions (AWS `us-east-1` by default). Copy the **pooled** connection string (the host contains `-pooler`).
+2. **Neon.** Create a project with **Postgres 18**, the same major version as PGlite, in the region closest to the Vercel functions (AWS `us-east-1` by default). Copy the **pooled** connection string (the host contains `-pooler`) and change `sslmode=require` to `sslmode=verify-full`, which keeps the full certificate check when a future `pg` major version gives `require` its weaker libpq meaning.
 3. **Vercel.**
    - Import the repository, giving Vercel access to this repository only.
    - Choose the Application Preset **Other** and leave the build commands alone; `vercel.json` sets them. Ignore the suggestion to deploy `./backend` and `./frontend` separately.
-   - Add `DATABASE_URL` as a **Sensitive** variable for **Production and Preview**.
+   - Add `DATABASE_URL` as a **Sensitive** variable for **Production and Preview**. The value is only the URL, starting with `postgresql://`, with no variable name and no quotes; anything else answers 503 `SERVER_MISCONFIGURED`. Preview deployments use this same database unless you give them their own Neon branch.
    - Deploy. Variables reach only new deployments, so redeploy after changing one.
-4. **First admin.** Put the connection string in `backend/.env.production.local` (gitignored), then run:
+4. **First admin.** Put `DATABASE_URL=<connection string>` in `backend/.env.production.local` (gitignored), then run:
    ```powershell
    npm run create-admin -w backend -- --env .env.production.local
    ```
@@ -294,7 +296,12 @@ Two more tables stand alone: `rate_limits` (counters) and `schema_version` (the 
    curl.exe -I https://<your-app>.vercel.app/
    curl.exe https://<your-app>.vercel.app/api/health
    curl.exe -I https://<your-app>.vercel.app/assets/does-not-exist.js   # must be 404
-   $env:E2E_BASE_URL = "https://<your-app>.vercel.app"; $env:E2E_EMAIL = "<admin email>"; $env:E2E_PASSWORD = "<admin password>"; npm run test:e2e:remote -w frontend
+   # The password is typed at a hidden prompt, so it stays out of the shell history.
+   $secret = Read-Host "Admin password" -AsSecureString
+   $env:E2E_PASSWORD = [pscredential]::new("admin", $secret).GetNetworkCredential().Password
+   $env:E2E_BASE_URL = "https://<your-app>.vercel.app"; $env:E2E_EMAIL = "<admin email>"
+   npm run test:e2e:remote -w frontend
+   Remove-Item Env:E2E_PASSWORD, Env:E2E_EMAIL, Env:E2E_BASE_URL; Remove-Variable secret
    ```
 
 ## Security
@@ -340,7 +347,7 @@ Deliberate scope decisions, what bounds each one, and the next step if it ever m
 
 I built this project with [Claude Code](https://claude.com/claude-code), an AI coding agent, working under my direction. Commits made with the agent carry a `Co-Authored-By` trailer, which is why it appears under Contributors.
 
-**My role: product, architecture decisions and review.** I wrote the original specification, set the bar and reviewed the work.
+**My role: product, architecture decisions and review.** I wrote the original specification, set the bar and reviewed the work. I also set up the infrastructure myself: the Neon database, the Vercel deployment with its environment variables and Firewall rule, and the GitHub security settings.
 
 - Key decisions I made:
   - **The MVC (Model-View-Controller) architectural pattern**, applied strictly, so only the models know SQL.
@@ -371,7 +378,7 @@ I built this project with [Claude Code](https://claude.com/claude-code), an AI c
 1. I describe what I want.
 2. The agent proposes a plan, and nothing is coded until I approve it.
 3. It implements and verifies, and I review.
-4. It prepares the commit, and I push it myself.
+4. It prepares the commit, I push it myself, and Vercel deploys from GitHub.
 
 ## License
 
