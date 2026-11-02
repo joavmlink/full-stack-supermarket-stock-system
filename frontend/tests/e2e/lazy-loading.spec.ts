@@ -2,6 +2,9 @@
 // downloads its page and no other. In production a chunk can be missing (a
 // tab opened before a deploy): the app reloads once, and if that does not
 // help, the error screen appears instead of a reload loop.
+import { readdirSync, renameSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 import { expect, navLink, signIn, test } from './fixtures';
 
@@ -96,7 +99,34 @@ test.describe('a missing chunk (production build only)', () => {
     await navLink(page, 'History').click();
     await expect(page.getByTestId('movements-page')).toBeVisible();
     expect(documents()).toBe(1);
-    expect(requests).toBe(2);
+    // The failed import, its refresh past the cache, and the import after the reload.
+    expect(requests).toBe(3);
+  });
+
+  test('a chunk that exists again loads, despite the 404 the browser has cached', async ({ page, apiURL, problems }) => {
+    problems.allow(...missingChunk, /^console error: TypeError: Failed to fetch dynamically imported module: .*\/StockMovementsPage-/);
+    await signIn(page, apiURL, 'employee');
+    await page.goto('/');
+    await expect(page.getByTestId('products-page')).toBeVisible();
+
+    // Routing a request disables the browser cache, so this removes the real file.
+    const assets = fileURLToPath(new URL('../../dist/assets/', import.meta.url));
+    const chunk = readdirSync(assets).find((name) => name.startsWith('StockMovementsPage-') && name.endsWith('.js'));
+    if (chunk === undefined) throw new Error('The history chunk is not in dist/assets.');
+    renameSync(join(assets, chunk), join(assets, `${chunk}.removed`));
+    try {
+      await navLink(page, 'History').click();
+      await expect(page.getByTestId('error-boundary')).toBeVisible();
+    } finally {
+      renameSync(join(assets, `${chunk}.removed`), join(assets, chunk));
+    }
+
+    // The first load meets the cached 404 and refreshes it; a later one has the chunk.
+    await expect(async () => {
+      const tryAgain = page.getByRole('button', { name: 'Try again' });
+      if (await tryAgain.isVisible()) await tryAgain.click();
+      await expect(page.getByTestId('movements-page')).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
   });
 
   test('missing for good: the error screen appears, without a reload loop', async ({ page, apiURL, problems }) => {
