@@ -14,7 +14,16 @@ Supermarket inventory system: an admin manages employees, categories and product
   - Repeated runs to catch flaky tests (3 in a row): only before a push that changes code or a deploy, or when a test fails in an odd way.
   - Coverage with thresholds: when the backend is finished and at project close, not at every stage.
   - A test that fails before the fix is required only for real bugs. For refactors and simplifications that keep behavior, the suite staying green is enough.
-  - Unchanged: typecheck, `npm audit`, `npm run check:versions` and the staged-file audit before every commit, and the full verification (blueprint section 11) before every push and deploy that changes code. A push that only changes docs needs the typecheck and those audits.
+  - Unchanged: typecheck, `npm audit`, `npm run check:versions` and the staged-file audit before every commit, and the full verification below before every push and deploy that changes code. A push that only changes docs needs the typecheck and those audits.
+- **Full verification:** all of this passes and is shown:
+  - in order: `npm ci`, `npm run typecheck`, `npm run build`, `npm test`, `npm run test:e2e:prod -w frontend`, `npm run test:coverage`, `npm run check:versions`, `npm run check:release-age -- --exclude=body-parser`, `npm run audit` (0 vulnerabilities);
+  - the backend suite three times in a row without an intermittent failure;
+  - `npm run test:concurrency -w backend` on a Neon "Schema only" branch, if a transaction, a lock or the schema changed;
+  - screenshots of the main screens (desktop and phone) reviewed, if the UI changed;
+  - no Spanish text in the tracked files, and a clean audit for secrets and personal data;
+  - no vulnerability described anywhere in the diff, and none known and unfixed in what is pushed;
+  - the reviews the policy below requires, with no finding pending, and this file up to date;
+  - after the deploy: `npm run test:e2e:remote -w frontend` against the published URL.
 - **Web research:** only when the answer changes a decision (versions, security, platform behavior). One search or page per fact, not several in parallel, unless the first is not enough.
 - **Summaries:** when a stage closes, a short summary: what was done, what was verified and what needs the user's approval. Don't repeat what is already in this file or in the commits.
 - **`/compact`:** only the user runs it. Suggest it after the commit that closes a stage or block, and when the conversation is long before starting something big; never in the middle of a task. Before suggesting it, make sure everything important is saved in this file, the plan and the commits.
