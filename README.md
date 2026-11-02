@@ -156,7 +156,7 @@ The frontend has one public variable, `VITE_API_URL`, versioned in `frontend/.en
 | `npm run test:e2e:remote -w frontend` | Read-only smoke test against a deployment |
 | `npm run create-admin -w backend` | Creates an admin (`-- --env <file>` targets the `DATABASE_URL` in that file) |
 | `npm run check:versions` | Exact versions, lockfile and `.npmrc` policy |
-| `npm run check:release-age` | Every locked package is at least 14 days old (network) |
+| `npm run check:release-age` | Every locked package comes from the npm registry and is at least 14 days old (network) |
 | `npm run audit` | `npm audit` for production dependencies |
 
 ## API reference

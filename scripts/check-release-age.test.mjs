@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { DEFAULT_MIN_DAYS, findTooRecent, listLockedPackages, parseMinDays } from './check-release-age.mjs';
+import {
+  DEFAULT_MIN_DAYS,
+  findTooRecent,
+  listForeignPackages,
+  listLockedPackages,
+  parseMinDays,
+} from './check-release-age.mjs';
 
 const REGISTRY = 'https://registry.npmjs.org';
 
@@ -27,6 +33,44 @@ describe('listLockedPackages', () => {
 
   test('handles a lockfile without packages', () => {
     assert.deepEqual(listLockedPackages({}), []);
+  });
+
+  test('checks an installed package that has no resolved URL, which npm fetches from the registry', () => {
+    const lockfile = { packages: { 'node_modules/a': { version: '1.0.0' } } };
+    assert.deepEqual(listLockedPackages(lockfile), [{ name: 'a', version: '1.0.0' }]);
+  });
+
+  test('does not count a host that only starts like the registry', () => {
+    const lockfile = {
+      packages: { 'node_modules/a': { version: '1.0.0', resolved: `${REGISTRY}.example.test/a/-/a-1.0.0.tgz` } },
+    };
+    assert.deepEqual(listLockedPackages(lockfile), []);
+  });
+});
+
+describe('listForeignPackages', () => {
+  test('lists installed packages that come from anywhere but the registry', () => {
+    const lookalike = `${REGISTRY}.example.test/a/-/a-1.0.0.tgz`;
+    const lockfile = {
+      packages: {
+        '': { name: 'root', version: '1.0.0' },
+        backend: { version: '0.0.0' },
+        'node_modules/backend': { resolved: 'backend', link: true },
+        'node_modules/ok': { version: '1.0.0', resolved: `${REGISTRY}/ok/-/ok-1.0.0.tgz` },
+        'node_modules/a': { version: '1.0.0', resolved: lookalike },
+        'node_modules/git-dep': { version: '1.0.0', resolved: 'git+https://example.test/x.git' },
+        'node_modules/no-version': { resolved: 'https://example.test/x.tgz' },
+      },
+    };
+    assert.deepEqual(listForeignPackages(lockfile), [
+      { name: 'a', resolved: lookalike },
+      { name: 'git-dep', resolved: 'git+https://example.test/x.git' },
+      { name: 'no-version', resolved: 'https://example.test/x.tgz' },
+    ]);
+  });
+
+  test('finds none in a lockfile without packages', () => {
+    assert.deepEqual(listForeignPackages({}), []);
   });
 });
 

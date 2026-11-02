@@ -75,7 +75,7 @@ npm run create-admin -w backend -- --env .env.production.local   # same, against
 node scripts/build-password-blocklist.mjs <SecLists 100k-most-used-passwords-NCSC.txt>   # regenerate the blocklist module
 npm run test:scripts           # tests of the repository scripts (node:test)
 npm run check:versions         # exact versions, lockfile and .npmrc policy
-npm run check:release-age -- --exclude=body-parser   # every locked package is >= 14 days old (network)
+npm run check:release-age -- --exclude=body-parser   # every locked package comes from the npm registry and is >= 14 days old (network)
 npm run audit                  # npm audit --omit=dev --audit-level=low
 node --test --test-name-pattern="rejects" scripts/check-versions.test.mjs   # one file / one test name
 ```
