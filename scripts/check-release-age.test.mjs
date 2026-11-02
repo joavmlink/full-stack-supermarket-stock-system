@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { findTooRecent, listLockedPackages } from './check-release-age.mjs';
+import { DEFAULT_MIN_DAYS, findTooRecent, listLockedPackages, parseMinDays } from './check-release-age.mjs';
 
 const REGISTRY = 'https://registry.npmjs.org';
 
@@ -54,4 +54,28 @@ describe('findTooRecent', () => {
   test('skips excluded packages', () => {
     assert.deepEqual(findTooRecent(packages, times, now, 14, new Set(['new', 'unknown'])), []);
   });
+
+  test('flags a package whose date cannot be read', () => {
+    const unreadable = new Map([['old@1.0.0', new Date('not a date')]]);
+    assert.deepEqual(findTooRecent([{ name: 'old', version: '1.0.0' }], unreadable, now, 14), [
+      { name: 'old', version: '1.0.0', published: null },
+    ]);
+  });
+});
+
+describe('parseMinDays', () => {
+  test('uses the default without the option', () => {
+    assert.equal(parseMinDays(['node', 'script', '--exclude=a']), DEFAULT_MIN_DAYS);
+  });
+
+  test('reads a whole number of days', () => {
+    assert.equal(parseMinDays(['--days=30']), 30);
+    assert.equal(parseMinDays(['--days=0']), 0);
+  });
+
+  for (const value of ['abc', '', '-1', '1.5', '1e3', ' 14', '14 ']) {
+    test(`stops the check on --days=${value}`, () => {
+      assert.throws(() => parseMinDays([`--days=${value}`]), /Invalid value/);
+    });
+  }
 });

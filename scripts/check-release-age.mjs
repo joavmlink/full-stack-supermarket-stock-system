@@ -31,13 +31,22 @@ export function findTooRecent(packages, publishTimes, now, minDays, excluded = n
   for (const { name, version } of packages) {
     if (excluded.has(name)) continue;
     const published = publishTimes.get(`${name}@${version}`);
-    if (published === undefined) {
+    if (published === undefined || Number.isNaN(published.getTime())) {
       problems.push({ name, version, published: null });
     } else if (published.getTime() > cutoff) {
       problems.push({ name, version, published });
     }
   }
   return problems;
+}
+
+/** Reads `--days=`: a mistyped value must stop the check, not make every date pass. */
+export function parseMinDays(args) {
+  const daysArg = args.find((arg) => arg.startsWith('--days='));
+  if (!daysArg) return DEFAULT_MIN_DAYS;
+  const value = daysArg.slice('--days='.length);
+  if (!/^\d+$/.test(value)) throw new Error(`Invalid value: ${daysArg}`);
+  return Number(value);
 }
 
 async function fetchPublishTimes(packages) {
@@ -58,8 +67,7 @@ async function fetchPublishTimes(packages) {
 }
 
 if (import.meta.url === pathToFileURL(resolve(process.argv[1] ?? '')).href) {
-  const daysArg = process.argv.find((arg) => arg.startsWith('--days='));
-  const minDays = daysArg ? Number(daysArg.slice('--days='.length)) : DEFAULT_MIN_DAYS;
+  const minDays = parseMinDays(process.argv);
   const excluded = new Set(
     process.argv.filter((arg) => arg.startsWith('--exclude=')).map((arg) => arg.slice('--exclude='.length)),
   );
