@@ -52,7 +52,7 @@ describe('toHttpError', () => {
 });
 
 describe('isDatabaseUnavailable', () => {
-  for (const code of ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', 'EHOSTUNREACH', 'ENETUNREACH', '08006', '08001', '53300', '57P01', '57P02', '57P03', '57014', '25P03']) {
+  for (const code of ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', 'EHOSTUNREACH', 'ENETUNREACH', '08006', '08001', '53300', '57P01', '57P02', '57P03', '57014', '25P03', '40P01']) {
     test(`detects code ${code}`, () => assert.equal(isDatabaseUnavailable(withCode(code)), true));
   }
 

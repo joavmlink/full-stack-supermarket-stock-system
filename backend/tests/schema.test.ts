@@ -86,6 +86,57 @@ describe('schema', () => {
     assert.equal(count(), 1);
   });
 
+  test('an instance that waited for the lock and finds the schema applied runs nothing', async () => {
+    const indexExists = async () =>
+      (await db.pool.query(`SELECT 1 FROM pg_indexes WHERE indexname = 'rate_limits_reset_at_idx'`)).rowCount === 1;
+    await db.pool.query('DROP INDEX rate_limits_reset_at_idx');
+    // Its first read came from before the other instance committed.
+    const lateReader = new Proxy(db.pool, {
+      get(target, property) {
+        if (property === 'query') return async () => ({ rows: [{ hash: 'read before the other instance finished' }] });
+        const value: unknown = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    try {
+      await ensureSchema(lateReader);
+      assert.equal(await indexExists(), false, 'the statements ran again');
+    } finally {
+      await db.pool.query(`UPDATE schema_version SET hash = 'another schema'`);
+      await ensureSchema(db.pool);
+    }
+  });
+
+  test('the statements travel in one round trip, so table locks are held briefly', async () => {
+    await db.pool.query(`UPDATE schema_version SET hash = 'another schema'`);
+    const withStatements: string[] = [];
+    const spying = new Proxy(db.pool, {
+      get(target, property) {
+        if (property !== 'connect') {
+          const value: unknown = Reflect.get(target, property);
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+        return async () => {
+          const client = await target.connect();
+          return new Proxy(client, {
+            get(inner, name) {
+              if (name !== 'query') {
+                const value: unknown = Reflect.get(inner, name);
+                return typeof value === 'function' ? value.bind(inner) : value;
+              }
+              return (text: string, ...rest: unknown[]) => {
+                if (text.includes('CREATE')) withStatements.push(text);
+                return (inner.query as (...args: unknown[]) => unknown).call(inner, text, ...rest);
+              };
+            },
+          });
+        };
+      },
+    });
+    await ensureSchema(spying);
+    assert.equal(withStatements.length, 1);
+  });
+
   test('generates UUID ids and timestamps', async () => {
     const id = await insertUser();
     assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);

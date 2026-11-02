@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type pg from 'pg';
 import { isUndefinedTable } from '../lib/pg-errors.js';
-import { withTransaction } from './pool.js';
+import { withTransaction, type Queryable } from './pool.js';
 
 /** Arbitrary constant that identifies the schema migration lock. */
 const SCHEMA_LOCK_KEY = 4_815_162_342;
@@ -147,14 +147,24 @@ export const TABLES = [
   'rate_limits',
 ] as const;
 
+async function holdsCurrentHash(database: Queryable): Promise<boolean> {
+  const { rows } = await database.query<{ hash: string }>('SELECT hash FROM schema_version');
+  return rows[0]?.hash === SCHEMA_HASH;
+}
+
 async function isSchemaCurrent(pool: pg.Pool): Promise<boolean> {
   try {
-    const { rows } = await pool.query<{ hash: string }>('SELECT hash FROM schema_version');
-    return rows[0]?.hash === SCHEMA_HASH;
+    return await holdsCurrentHash(pool);
   } catch (error) {
     if (isUndefinedTable(error)) return false;
     throw error;
   }
+}
+
+/** The same check inside a transaction, where a failed statement would abort it. */
+async function isSchemaCurrentInTransaction(client: pg.PoolClient): Promise<boolean> {
+  const { rows } = await client.query<{ present: boolean }>(`SELECT to_regclass('schema_version') IS NOT NULL AS present`);
+  return rows[0]!.present && (await holdsCurrentHash(client));
 }
 
 /**
@@ -162,15 +172,15 @@ async function isSchemaCurrent(pool: pg.Pool): Promise<boolean> {
  * they lock every table until they commit, which a new instance must not do to
  * the writes in progress. A current schema costs one read and takes no locks.
  * The transaction-scoped advisory lock makes a second instance wait instead of
- * racing the first one on CREATE statements.
+ * racing the first one on CREATE statements; when its turn comes the work may be
+ * done. The statements share one round trip, so their locks last as little as possible.
  */
 export async function ensureSchema(pool: pg.Pool): Promise<void> {
   if (await isSchemaCurrent(pool)) return;
   await withTransaction(pool, async (client) => {
     await client.query('SELECT pg_advisory_xact_lock($1)', [SCHEMA_LOCK_KEY]);
-    for (const statement of STATEMENTS) {
-      await client.query(statement);
-    }
+    if (await isSchemaCurrentInTransaction(client)) return;
+    await client.query(STATEMENTS.join(';\n'));
     await client.query(
       `INSERT INTO schema_version (id, hash) VALUES (true, $1)
        ON CONFLICT (id) DO UPDATE SET hash = EXCLUDED.hash`,

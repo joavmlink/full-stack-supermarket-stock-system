@@ -17,9 +17,10 @@ const NETWORK_ERROR_CODES = new Set([
 
 /**
  * SQLSTATEs for "database unavailable": too many connections, admin/crash shutdown,
- * cannot connect now, and a statement or transaction past its server-side limit.
+ * cannot connect now, a statement or transaction past its server-side limit, and a
+ * transaction chosen as a deadlock's victim (rolled back, so a retry is safe).
  */
-const UNAVAILABLE_SQLSTATES = new Set(['53300', '57P01', '57P02', '57P03', '57014', '25P03']);
+const UNAVAILABLE_SQLSTATES = new Set(['53300', '57P01', '57P02', '57P03', '57014', '25P03', '40P01']);
 
 const UNAVAILABLE_MESSAGES = [
   'timeout exceeded when trying to connect',

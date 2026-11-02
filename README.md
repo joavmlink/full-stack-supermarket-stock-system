@@ -151,6 +151,7 @@ The frontend has one public variable, `VITE_API_URL`, versioned in `frontend/.en
 | `npm run typecheck` | Both workspaces |
 | `npm test` | Scripts, backend, frontend unit tests and e2e against the dev servers |
 | `npm run test:coverage` | Backend coverage with thresholds (97 % lines, 93 % branches, 93 % functions) |
+| `npm run test:concurrency -w backend` | Overlapping requests on a real Postgres: the `DATABASE_URL` in `backend/.env.concurrency.local`, a Neon branch created with "Schema only". It changes that database freely and refuses one that has users |
 | `npm run test:e2e:prod -w frontend` | The same e2e specs against the production build |
 | `npm run test:e2e:remote -w frontend` | Read-only smoke test against a deployment |
 | `npm run create-admin -w backend` | Creates an admin (`-- --env <file>` targets the `DATABASE_URL` in that file) |
@@ -337,6 +338,7 @@ Deliberate scope decisions, what bounds each one, and the next step if it ever m
 | Limitation | Why it is acceptable | Next step |
 | --- | --- | --- |
 | Admins cannot change their own password or name in the app | Few accounts, created by whoever runs the command-line tool | A profile screen |
+| A schema change applied during sales can deadlock with one of them | Only when a deployment changes the schema; that sale rolls back, answers 503 and the app retries it with the same id | Versioned migrations |
 | No "forgot my password" email | An admin sets a new password for an employee | Email reset links |
 | The schema has no migrations: its statements only create what is missing | Enough while tables only gain new objects. A deployment that changes them runs them on the first request, holding writes for a moment | A migration tool, run at deploy time |
 | `/stats` counts the movement history on every visit for admins | About 60 ms at 200,000 movements, measured on an in-memory database; it will be slower on Neon | Counter tables updated in the movement's transaction |
