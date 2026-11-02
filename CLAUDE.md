@@ -11,10 +11,10 @@ Supermarket inventory system: an admin manages employees, categories and product
 - **Verify before claiming:** never say something works without running it, and show failing output. Find the root cause of flaky tests; never retry or skip them.
 - **Verification cadence:**
   - While working on a stage: typecheck plus only the test files you touched (`cd backend; npx tsx --test tests/<file>.test.ts`), and screenshots for UI work. The full suite runs once, when the stage closes.
-  - Repeated runs to catch flaky tests (3 in a row): only before an important push or a deploy, or when a test fails in an odd way.
+  - Repeated runs to catch flaky tests (3 in a row): only before a push that changes code or a deploy, or when a test fails in an odd way.
   - Coverage with thresholds: when the backend is finished and at project close, not at every stage.
   - A test that fails before the fix is required only for real bugs. For refactors and simplifications that keep behavior, the suite staying green is enough.
-  - Unchanged: typecheck, `npm audit`, `npm run check:versions` and the staged-file audit before every commit, and the full verification (blueprint section 11) before every push and deploy.
+  - Unchanged: typecheck, `npm audit`, `npm run check:versions` and the staged-file audit before every commit, and the full verification (blueprint section 11) before every push and deploy that changes code. A push that only changes docs needs the typecheck and those audits.
 - **Web research:** only when the answer changes a decision (versions, security, platform behavior). One search or page per fact, not several in parallel, unless the first is not enough.
 - **Summaries:** when a stage closes, a short summary: what was done, what was verified and what needs the user's approval. Don't repeat what is already in this file or in the commits.
 - **`/compact`:** only the user runs it. Suggest it after the commit that closes a stage or block, and when the conversation is long before starting something big; never in the middle of a task. Before suggesting it, make sure everything important is saved in this file, the plan and the commits.
@@ -25,13 +25,12 @@ Supermarket inventory system: an admin manages employees, categories and product
 - **Vulnerabilities are fixed, never published.** Nothing in the repository describes a vulnerability: not the README, docs, comments, this file, test names, commit messages, PRs, issues, branch names, screenshots or logs. When one is found: report it in the chat at once (what it is, severity, impact); fix it before any other push or deploy of the affected part (rotate exposed secrets); the fix commit and its test describe the correct behavior ("Require ownership to update a ticket"), never the attack. One the user decides not to fix yet (low severity only) is tracked privately (a draft GitHub Security Advisory), never in the repo. A published vulnerability or secret is an incident. Only **limitations** go in the README's "Known limitations": a deliberate scope decision with negligible impact that gives an attacker nothing beyond the app's public behavior; when in doubt, it is a vulnerability. `SECURITY.md` asks for private reports.
 - **Commits:** English, a summary line plus bullets, and keep the `Co-Authored-By` trailer for Claude.
 - **README:** it describes the current state only (no history of earlier versions) and never names where ideas came from (courses, reference projects).
-- **Review policy (by block, not by stage):**
-  - `/code-review` and `/simplify` (asked to report only, no edits) run once per large block:
-    - Backend: one review when the backend is finished; `high` if the block includes a sensitive stage (authentication, sessions, authorization, money, transactions or concurrency), otherwise `medium`.
-    - Frontend: one review when the frontend is finished, `medium`.
-    - Project close (whole-code review): `/code-review high backend/src frontend/src` + `/security-review` of the whole code.
-  - In this project: stages 3 and 4 are already reviewed. Stage 5 is reviewed with `high` when it ends, as the backend-block review that also covers stage 6. Stages 7 and 8 are reviewed together when stage 8 ends.
-  - `/security-review`: before the first deploy and before every important push.
+- **Review policy (few fixed moments, so the same code is not reviewed twice):**
+  - The whole-code review before the first deploy is done. From now on, run `/security-review` before a push whose diff touches authentication, authorization, money, SQL or transactions, dependencies, headers or secret handling; no review when only tests or docs change.
+  - A new backend area that is sensitive (authentication, sessions, authorization, money, transactions or concurrency) gets `/code-review high` on that area only when it is finished. A new frontend has no review of its own.
+  - `/simplify` is not mandatory: it looks for quality improvements, not bugs or vulnerabilities. Run it only if the user asks, or if you see concrete duplication, say where and the user approves. It reports only, no edits.
+  - Suggest `/compact` before each review, since every turn of a long conversation uses more.
+  - After applying fixes, their tests and the suite are enough. Review again only if a fix changes a sensitive area, and only that part.
   - `/simplify` and `/security-review` have no levels; they always run the same way.
   - `max` and `ultra` only when the user explicitly asks: `max` uses a large share of the user's Pro plan; `ultra` runs in the cloud, is billed separately and only the user can launch it.
   - Every finding: verify it against the code, present it in a table as "confirmed" or "recommend no change" with the reason, and apply nothing until the user approves.
