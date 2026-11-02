@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Supermarket inventory system: an admin manages employees, categories and products; employees browse products and record stock movements (sales or restocks). npm workspaces monorepo (`backend`, `frontend`) deployed to Vercel (static frontend + the Express API as one Vercel Function) with Neon Postgres.
 
+**Scope:** a personal portfolio project: no commercial use, no payments and no real personal data of third parties, so the data other than the owner's own account is made up.
+
 ## Working agreement
 
 - **Language:** talk to the user in Spanish. Everything versioned (code, UI, errors, comments, tests, docs) is in English. Before a commit, search the tracked files for Spanish text.
@@ -19,8 +21,8 @@ Supermarket inventory system: an admin manages employees, categories and product
   - in order: `npm ci`, `npm run typecheck`, `npm run build`, `npm test`, `npm run test:e2e:prod -w frontend`, `npm run test:coverage`, `npm run check:versions`, `npm run check:release-age -- --exclude=body-parser`, `npm run audit` (0 vulnerabilities);
   - the backend suite three times in a row without an intermittent failure;
   - `npm run test:concurrency -w backend` on a Neon "Schema only" branch, if a transaction, a lock or the schema changed;
-  - screenshots of the main screens (desktop and phone) reviewed, if the UI changed;
-  - no Spanish text in the tracked files, and a clean audit for secrets and personal data;
+  - screenshots of the main screens (desktop and phone) reviewed;
+  - no Spanish text in the tracked files, a clean audit for secrets and personal data, and the new commits authored with the noreply email;
   - no vulnerability described anywhere in the diff, and none known and unfixed in what is pushed;
   - the reviews the policy below requires, with no finding pending, and this file up to date;
   - after the deploy: `npm run test:e2e:remote -w frontend` against the published URL.
@@ -31,12 +33,15 @@ Supermarket inventory system: an admin manages employees, categories and product
 - **Never push.** The user pushes from their own terminal. Ask before irreversible or external actions (deleting files or git history, cloud resources).
 - **Secrets:** never ask for or print connection strings or tokens. They live in `backend/.env` (gitignored) locally and as Sensitive variables in Vercel. Test credentials must be obviously fake (`postgresql://app_user:not-a-real-password@...`).
 - **Before every commit:** `npm audit` with 0 vulnerabilities, `npm run check:versions`, and an audit of the staged files for secrets (API keys, GitHub/AWS/Slack tokens, Neon `npg_` passwords, private keys), `.env` contents, connection strings with credentials and personal data (emails, system paths such as `C:\Users\...`).
+- **Git identity:** everything is published with the user's private GitHub noreply email, including merges from the web, which use the account's email. Before every commit, check `git config user.email`; before every push, check the new commits with `git log origin/main..HEAD --format='%ae %ce'`. The account keeps **Keep my email addresses private** and **Block command line pushes that expose my email** on.
+- **GitHub:** `main` has a ruleset that targets only **Default branch**, with **Block force pushes** and **Restrict deletions**. With **All branches**, Dependabot's force pushes would be blocked too and its rebases would fail.
+- **Preview deployments** share Production's database. That is accepted only for a portfolio, and only if they ask for the Vercel login: check it with an anonymous request. Before trying a schema or data change on a branch, give Preview its own Neon branch.
 - **Vulnerabilities are fixed, never published.** Nothing in the repository describes a vulnerability: not the README, docs, comments, this file, test names, commit messages, PRs, issues, branch names, screenshots or logs. When one is found: report it in the chat at once (what it is, severity, impact); fix it before any other push or deploy of the affected part (rotate exposed secrets); the fix commit and its test describe the correct behavior ("Require ownership to update a ticket"), never the attack. One the user decides not to fix yet (low severity only) is tracked privately (a draft GitHub Security Advisory), never in the repo. A published vulnerability or secret is an incident. Only **limitations** go in the README's "Known limitations": a deliberate scope decision with negligible impact that gives an attacker nothing beyond the app's public behavior; when in doubt, it is a vulnerability. `SECURITY.md` asks for private reports.
 - **Commits:** English, a summary line plus bullets, and keep the `Co-Authored-By` trailer for Claude.
 - **README:** it describes the current state only (no history of earlier versions) and never names where ideas came from (courses, reference projects).
 - **Review policy (few fixed moments, so the same code is not reviewed twice):**
-  - The whole-code review before the first deploy is done. From now on, run `/security-review` before a push whose diff touches authentication, authorization, money, SQL or transactions, dependencies, headers or secret handling; no review when only tests or docs change.
-  - A new backend area that is sensitive (authentication, sessions, authorization, money, transactions or concurrency) gets `/code-review high` on that area only when it is finished. A new frontend has no review of its own.
+  - The whole-code review before the first deploy is done. From now on, run `/security-review` before a push whose diff touches authentication, authorization, SQL or transactions, dependencies, headers or secret handling; no review when only tests or docs change.
+  - A new backend area that is sensitive (authentication, sessions, authorization, transactions or concurrency) gets `/code-review high` on that area only when it is finished. A new frontend has no review of its own.
   - `/simplify` is not mandatory: it looks for quality improvements, not bugs or vulnerabilities. Run it only if the user asks, or if you see concrete duplication, say where and the user approves. It reports only, no edits.
   - Suggest `/compact` before each review, since every turn of a long conversation uses more.
   - After applying fixes, their tests and the suite are enough. Review again only if a fix changes a sensitive area, and only that part.
@@ -92,7 +97,8 @@ node --test --test-name-pattern="rejects" scripts/check-versions.test.mjs   # on
   - `tailwindcss` with `@tailwindcss/vite`;
   - `@types/node` with the Node major (26).
 
-  Dependabot groups these and also respects the 14-day window through its `cooldown`.
+  Dependabot groups the first three and respects the 14-day window through its `cooldown`. It does not know about the Node major, so a major bump of `@types/node` is closed by hand.
+- **Dependabot PRs (there is no CI):** nothing runs the tests on its own, and Vercel's `Ready` only says the deploy worked. Before merging, fetch the branch and run the full verification and `/security-review` on its **latest commit**. A `rebase` or `recreate` can change the version, so a new commit is verified again. After the deploy, run the remote smoke test. **A security alert comes first**, ahead of the usual PR review: it can skip the 14-day window, not this verification.
 
 ## Architecture (agreed design; sections are filled in as each stage lands)
 

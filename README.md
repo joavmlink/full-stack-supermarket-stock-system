@@ -4,7 +4,7 @@ Inventory for a supermarket with two roles. An **admin** manages employees, cate
 
 **[▶ Live demo](https://full-stack-supermarket-stock-system.vercel.app)**
 
-The demo is private: there are no public accounts, so the link opens the sign-in page and these screenshots show the app. They come from the production build, with fake data.
+The demo is private: there are no public accounts, so the link opens the sign-in page and these screenshots show the app. They come from the production build, with fake data. This is a personal portfolio project, not meant for commercial use or for real personal data of third parties.
 
 | Products (admin) | Recording a movement |
 | --- | --- |
@@ -280,19 +280,19 @@ Two more tables stand alone: `rate_limits` (counters) and `schema_version` (the 
 
 ## Deployment (Vercel + Neon)
 
-1. **GitHub.** Push the repository. In its security settings, turn on Secret Protection, Push protection, Dependabot alerts and Private vulnerability reporting.
+1. **GitHub.** Push the repository. In its security settings, turn on Secret Protection, Push protection, Dependabot alerts and Private vulnerability reporting. Protect `main` with a ruleset that targets only **Default branch**, with **Block force pushes** and **Restrict deletions**; with **All branches**, Dependabot's rebases would fail.
 2. **Neon.** Create a project with **Postgres 18**, the same major version as PGlite, in the region closest to the Vercel functions (AWS `us-east-1` by default). Copy the **pooled** connection string (the host contains `-pooler`) and change `sslmode=require` to `sslmode=verify-full`, which keeps the full certificate check when a future `pg` major version gives `require` its weaker libpq meaning.
 3. **Vercel.**
    - Import the repository, giving Vercel access to this repository only.
    - Choose the Application Preset **Other** and leave the build commands alone; `vercel.json` sets them. Ignore the suggestion to deploy `./backend` and `./frontend` separately.
-   - Add `DATABASE_URL` as a **Sensitive** variable for **Production and Preview**. The value is only the URL, starting with `postgresql://`, with no variable name and no quotes; anything else answers 503 `SERVER_MISCONFIGURED`. Preview deployments use this same database unless you give them their own Neon branch.
+   - Add `DATABASE_URL` as a **Sensitive** variable for **Production and Preview**. The value is only the URL, starting with `postgresql://`, with no variable name and no quotes; anything else answers 503 `SERVER_MISCONFIGURED`. Preview deployments use this same database unless you give them their own Neon branch, so make sure they ask for the Vercel login.
    - Deploy. Variables reach only new deployments, so redeploy after changing one.
 4. **First admin.** Put `DATABASE_URL=<connection string>` in `backend/.env.production.local` (gitignored), then run:
    ```powershell
    npm run create-admin -w backend -- --env .env.production.local
    ```
 5. **Firewall.** In Vercel's Firewall, add one Rate Limit rule: if `Request Path` starts with `/api/`, fixed window of 60 s, 100 requests per **IP** (only IP), action "Too many requests (429)".
-6. **Verify.** Don't send bursts of requests to test the limit: Vercel's automatic protection challenges the IP that does it.
+6. **Verify.** Test the Firewall at a steady pace, about 3 requests per second to `/api/health`, stopping at the first 429 and confirming that it answers 200 again. Don't send bursts: Vercel's automatic protection challenges the IP that does it. To test automatic deployments, push a branch with a code change, check that Vercel creates a Preview, then delete both; a docs-only commit may not deploy.
    ```powershell
    curl.exe -I https://<your-app>.vercel.app/
    curl.exe https://<your-app>.vercel.app/api/health
